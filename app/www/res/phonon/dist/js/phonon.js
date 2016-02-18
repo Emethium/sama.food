@@ -1015,7 +1015,7 @@ phonon.tagManager = (function () {
 
 }(window, document));
 /* ========================================================================
- * Phonon: navigator.js v1.1
+ * Phonon: navigator.js v1.2
  * http://phonon.quarkdev.com
  * ========================================================================
  * Licensed under MIT (http://phonon.quarkdev.com)
@@ -1056,8 +1056,18 @@ phonon.tagManager = (function () {
 
     /**
      * @constructor
+	 * @param {Object} scope
      */
-    function Activity() {}
+    function Activity(scope) {
+		if(typeof scope === 'object') {
+			var handler;
+			for(handler in scope) {
+				if(this[handler] !== undefined && this[handler] !== 'constructor') {
+					this[handler + 'Callback'] = scope[handler];
+				}
+			}
+		}
+	}
 
     /**
      *
@@ -1126,16 +1136,14 @@ phonon.tagManager = (function () {
    */
   var getPageObject = function(pageName) {
 
-    var page = null;
     var i = pages.length - 1;
 
     for (; i >= 0; i--) {
       if(pages[i].name === pageName) {
-        page = pages[i];
-        break;
+        return pages[i];
       }
     }
-    return page;
+    return null;
   };
 
   /**
@@ -1185,10 +1193,28 @@ phonon.tagManager = (function () {
 
       previousPageEl.classList.remove('app-active');
     }
+
     callTransitionEnd(currentPage);
     callHiddenCallback(previousPage);
 
     onActiveTransition = false;
+  }
+
+  function dispatchEvent(eventName, pageName, parameters) {
+
+	  var eventInitDict = {
+          detail: { page: pageName },
+          bubbles: true,
+          cancelable: true
+      };
+
+	  if(typeof parameters !== 'undefined') {
+		  eventInitDict.detail.req = parameters
+	  }
+
+	  var event = new window.CustomEvent(eventName, eventInitDict);
+
+	  document.dispatchEvent(event);
   }
 
   function callCreate(pageName) {
@@ -1198,20 +1224,14 @@ phonon.tagManager = (function () {
       phonon.tagManager.trigger(pageName, 'create');
     }
 
-    var page = getPageObject(pageName);
-
-    var pageEvent = new window.CustomEvent('pagecreated', {
-        detail: { page: pageName },
-        bubbles: true,
-        cancelable: true
-    });
-
     /*
      * dispatch the event before calling the activity's callback
      * so that UI components are ready to use
      * issue #52 is related to this
     */
-    document.dispatchEvent(pageEvent);
+	dispatchEvent('pagecreated', pageName)
+
+	var page = getPageObject(pageName);
 
     // Call the onCreate callback
     if(page.activity instanceof Activity && typeof page.activity.onCreateCallback === 'function') {
@@ -1222,7 +1242,7 @@ phonon.tagManager = (function () {
 
   function callReady(pageName) {
 
-    var page = getPageObject(pageName);
+	var page = getPageObject(pageName);
 
     window.setTimeout(function() {
 
@@ -1232,19 +1252,13 @@ phonon.tagManager = (function () {
       }
 
       // Dispatch the global event pageopened
-      var pageEvent = new window.CustomEvent('pageopened', {
-          detail: { page: pageName },
-          bubbles: true,
-          cancelable: true
-      });
-
-      document.dispatchEvent(pageEvent);
+	  dispatchEvent('pageopened', pageName)
 
       // Call the onReady callback
       if(page.activity instanceof Activity && typeof page.activity.onReadyCallback === 'function') {
         page.activity.onReadyCallback();
       }
-      
+
     }, page.readyDelay);
   }
 
@@ -1252,6 +1266,8 @@ phonon.tagManager = (function () {
     if(riotEnabled) {
       phonon.tagManager.trigger(pageName, 'transitionend');
     }
+
+	dispatchEvent('pagetransitionend', pageName)
 
     var page = getPageObject(pageName);
 
@@ -1267,6 +1283,8 @@ phonon.tagManager = (function () {
       phonon.tagManager.trigger(pageName, 'hidden');
     }
 
+	dispatchEvent('pagehidden', pageName)
+
     var page = getPageObject(pageName);
 
     // Call the onHidden callback
@@ -1281,6 +1299,8 @@ phonon.tagManager = (function () {
       phonon.tagManager.trigger(pageName, 'tabchanged', tabNumber);
     }
 
+	dispatchEvent('pagetabchanged', pageName)
+
     var page = getPageObject(pageName);
 
     // Call the onTabChanged callback
@@ -1292,6 +1312,8 @@ phonon.tagManager = (function () {
   function callClose(pageName, nextPageName, hash) {
 
     function close() {
+
+	  dispatchEvent('pageclosed', pageName)
 
       var currentHash = window.location.hash.split('#')[1];
 
@@ -1336,6 +1358,8 @@ phonon.tagManager = (function () {
     if(riotEnabled) {
       phonon.tagManager.trigger(pageName, 'hashchanged', params);
     }
+
+	dispatchEvent('pagehash', pageName, params)
 
     var page = getPageObject(pageName);
 
@@ -1425,18 +1449,40 @@ phonon.tagManager = (function () {
     req.send('');
   }
 
-  function addPage(pageName) {
+  function createPage(pageName, properties) {
+	properties = typeof properties === 'object' ? properties : {};
 
-    var page = {
-      name: pageName,
-      mounted: false,
-      async: false,
-      activity: null,
-      content: null,
-      readyDelay: 1
-    };
+	var newPage = {
+		name: pageName,
+		mounted: false,
+		async: false,
+		activity: null,
+		content: null,
+		readyDelay: 1
+	};
 
-    pages.push(page);
+	var prop;
+	for(prop in properties) {
+		newPage[prop] = properties[prop];
+	}
+
+	return newPage;
+  }
+
+  function createOrUpdatePage(pageName, properties) {
+	  properties = typeof properties === 'object' ? properties : {};
+
+	  var page = getPageObject(pageName);
+	  if(page === null) {
+		  return pages.push(createPage(pageName, properties));
+	  }
+
+	  var prop;
+	  for(prop in properties) {
+		  page[prop] = properties[prop];
+	  }
+
+	  return true;
   }
 
   /**
@@ -1678,7 +1724,7 @@ phonon.tagManager = (function () {
         page.classList.add('app-page');
       }
 
-      addPage( page.tagName.toLowerCase() );
+      createOrUpdatePage( page.tagName.toLowerCase() );
     }
   }
 
@@ -1865,12 +1911,8 @@ phonon.tagManager = (function () {
   if(opts.useHash) window.on('hashchange', onRoute);
 
   document.on('backbutton', function() {
-    var pObj = getLastPage();
-    if(currentPage === opts.defaultPage) {
-      return;
-    }
-
-    callClose(currentPage, pObj.page, opts.hashPrefix + pObj.page + '/' + pObj.params);
+    var last = getLastPage();
+    callClose(currentPage, last.page, opts.hashPrefix + last.page + '/' + last.params);
   });
 
 
@@ -1910,18 +1952,26 @@ phonon.tagManager = (function () {
           throw new Error('readyDelay option must be a number');
         }
 
-        var p = getPageObject(options.page);
+		// vuejs, riotjs support
+        var page = getPageObject(options.page);
+		var exists = page === null ? false : true;
+		if(!exists) {
+          page = createPage(options.page);
+		}
 
-        if(p) {
-          p.activity = (typeof callback === 'function' ? new Activity() : null);
-          p.callback = callback;
-          p.async = (typeof options.preventClose === 'boolean' ? options.preventClose : false);
-          p.content = (typeof options.content === 'string' ? options.content : null);
-          p.readyDelay = (typeof options.readyDelay === 'number' ? options.readyDelay : 1);
-        } else {
-          throw new Error('A namespace for  ' + options.page + ' is detected, but the DOM node <' + options.page + '> is not found.');
-        }
-      },
+		if(typeof callback === 'function' || typeof callback === 'object') {
+		  page.activity = new Activity(callback);
+	  	} else {
+		  page.activity = null;
+	  	}
+
+		page.callback = callback;
+		page.async = (typeof options.preventClose === 'boolean' ? options.preventClose : false);
+		page.content = (typeof options.content === 'string' ? options.content : null);
+		page.readyDelay = (typeof options.readyDelay === 'number' ? options.readyDelay : 1);
+
+		createOrUpdatePage(options.page.toLowerCase(), page);
+	  },
       callCallback: callCallback
     };
   };
@@ -2973,44 +3023,44 @@ phonon.tagManager = (function () {
 }(typeof window !== 'undefined' ? window : this));
 
 /* ========================================================================
- * Phonon: notifications.js v0.0.2
- * http://phonon.quarkdev.com
- * ========================================================================
- * Licensed under MIT (http://phonon.quarkdev.com)
- * ======================================================================== */
+* Phonon: notifications.js v0.0.2
+* http://phonon.quarkdev.com
+* ========================================================================
+* Licensed under MIT (http://phonon.quarkdev.com)
+* ======================================================================== */
 ;(function (window, phonon) {
 
-	'use strict';
+	'use strict'
 
-	var notifs = [];
+	var notifs = []
 
 	function onShow() {
 
-		var self = this;
+		var self = this
 
-		var timeout = self.getAttribute('data-timeout');
+		var timeout = self.getAttribute('data-timeout')
 		if(timeout) {
 
 			if(isNaN(parseInt(timeout))) {
-				console.error('Attribute data-timeout must be a number');
+				console.error('Attribute data-timeout must be a number')
 			} else {
 
-				var progress = self.querySelector('.progress');
+				var progress = self.querySelector('.progress')
 
 				if(progress) {
 
 					if(!progress.classList.contains('active')) {
-						progress.classList.add('active');
+						progress.classList.add('active')
 					}
 
-					var progressBar = progress.querySelector('.determinate');
+					var progressBar = progress.querySelector('.determinate')
 
-					progressBar.style.width = '0';
-					progressBar.style.transitionDuration = timeout + 'ms';
+					progressBar.style.width = '0'
+					progressBar.style.transitionDuration = timeout + 'ms'
 
 					window.setTimeout(function() {
-						progressBar.style.width = '100%';
-					}, 1);
+						progressBar.style.width = '100%'
+					}, 1)
 				}
 
 				window.setTimeout(function() {
@@ -3019,159 +3069,171 @@ phonon.tagManager = (function () {
 			}
 		}
 
-		self.off(phonon.event.transitionEnd, onShow, false);
+		self.off(phonon.event.transitionEnd, onShow, false)
 	}
 
 	function onHide() {
 
-		var self = this;
+		var self = this
 
 		// reset
-		self.style.zIndex = 28;
+		self.style.zIndex = 28
 
-		var height = self.clientHeight;
+		var height = self.clientHeight
 
 		// for the notif
-		self.style.webkitTransform = 'translateY('+height+'px)';
-		self.style.MozTransform = 'translateY('+height+'px)';
-		self.style.msTransform = 'translateY('+height+'px)';
-		self.style.OTransform = 'translateY('+height+'px)';
-		self.style.transform = 'translateY('+height+'px)';
+		self.style.webkitTransform = 'translateY('+height+'px)'
+		self.style.MozTransform = 'translateY('+height+'px)'
+		self.style.msTransform = 'translateY('+height+'px)'
+		self.style.OTransform = 'translateY('+height+'px)'
+		self.style.transform = 'translateY('+height+'px)'
 
-		var index = getIndex(self);
-		if(index >= 0) notifs.splice(index, 1);
+		var index = getIndex(self)
+		if(index >= 0) notifs.splice(index, 1)
 
 		// for others
-		var i = notifs.length - 1;
+		var i = notifs.length - 1
 		for(; i >= 0; i--) {
-			var valueUpdated = (i * height);
-			notifs[i].style.webkitTransform = 'translateY(-'+valueUpdated+'px)';
-			notifs[i].style.MozTransform = 'translateY(-'+valueUpdated+'px)';
-			notifs[i].style.msTransform = 'translateY(-'+valueUpdated+'px)';
-			notifs[i].style.OTransform = 'translateY(-'+valueUpdated+'px)';
-			notifs[i].style.transform = 'translateY(-'+valueUpdated+'px)';
+			var valueUpdated = (i * height)
+			notifs[i].style.webkitTransform = 'translateY(-'+valueUpdated+'px)'
+			notifs[i].style.MozTransform = 'translateY(-'+valueUpdated+'px)'
+			notifs[i].style.msTransform = 'translateY(-'+valueUpdated+'px)'
+			notifs[i].style.OTransform = 'translateY(-'+valueUpdated+'px)'
+			notifs[i].style.transform = 'translateY(-'+valueUpdated+'px)'
 		}
 
-		var progressBar = self.querySelector('.determinate');
+		var progressBar = self.querySelector('.determinate')
 		if(progressBar) {
-			progressBar.style.width = '0';
-			progressBar.style.transitionDuration = '0ms';
+			progressBar.style.width = '0'
+			progressBar.style.transitionDuration = '0ms'
 		}
 
-		self.off(phonon.event.transitionEnd, onHide, false);
+		self.off(phonon.event.transitionEnd, onHide, false)
 
 		if(self.getAttribute('data-autodestroy') === 'true') {
 			window.setTimeout(function() {
-				document.body.removeChild(self);
-			}, 500);
+				document.body.removeChild(self)
+			}, 500)
 		}
 	}
 
 	function getIndex(notif) {
-		var i = notifs.length - 1;
+		var i = notifs.length - 1
 		for (; i >= 0; i--) {
 			if(notifs[i] === notif) {
-				return i;
+				return i
 			}
 		}
-		return -1;
+		return -1
 	}
 
 	var getNotification = function(target) {
 		for (; target && target !== document; target = target.parentNode) {
 			if(target.classList.contains('notification')) {
-				return target;
+				return target
 			}
 		}
 	};
 
-	var buildNotif = function(text, timeout, showButton) {
-		if(typeof text !== 'string') text = '';
-		timeout = (typeof timeout === 'number' ? timeout : 5000);
+	var generateId = function() {
+		var text = ""
+		var possible = "abcdefghijklmnopqrstuvwxyz"
+		var i = 0
+		for(; i < 8; i++) {
+			text += possible.charAt(Math.floor(Math.random() * possible.length))
+		}
+		return text
+	}
 
-    var progress = '<div class="progress"><div class="determinate"></div></div>';
-    var btn = (showButton === true ? '<button class="btn pull-right" data-hide-notif="true">CANCEL</button>' : '');
+	var buildNotif = function(text, timeout, showButton, cancelButton) {
+		if(typeof text !== 'string') text = ''
+		timeout = (typeof timeout === 'number' ? timeout : 5000)
+		cancelButton = (typeof cancelButton === 'string' ? cancelButton : 'CANCEL')
 
-    var div = document.createElement('div');
-		div.setAttribute('class', 'notification');
-		div.setAttribute('data-autodestroy', 'true');
-		if(timeout) div.setAttribute('data-timeout', timeout);
-		div.id = 'auto-gen-notif-' + Math.floor(Date.now() / 1000);
+		var progress = '<div class="progress"><div class="determinate"></div></div>'
+		var btn = (showButton === true ? '<button class="btn pull-right" data-hide-notif="true">' + cancelButton + '</button>' : '')
 
-		div.innerHTML = progress + btn + text;
+		var div = document.createElement('div')
+		div.setAttribute('class', 'notification')
+		div.setAttribute('data-autodestroy', 'true')
+		if(timeout) div.setAttribute('data-timeout', timeout)
+		div.id = generateId()
 
-		document.body.appendChild(div);
+		div.innerHTML = progress + btn + text
 
-		return div;
+		document.body.appendChild(div)
+
+		return document.querySelector('#' + div.id)
 	};
 
 	document.on('tap', function(evt) {
 
-		var target = evt.target;
+		var target = evt.target
 
 		if(target.getAttribute('data-hide-notif') === 'true') {
-			var notification = getNotification(target);
-			if(notification) hide(notification);
+			var notification = getNotification(target)
+			if(notification) hide(notification)
 		}
 	});
 
 	/*
-	 * Public API
+	* Public API
 	*/
 
 	function show(notification) {
 
-		if(!notification.classList.contains('show')) {
-			notification.classList.add('show');
+		if (notification.classList.contains('show')) return false
 
-			// Fix animation
-			notification.style.zIndex = (28 + notifs.length);
+		window.setTimeout(function() {
+			notification.classList.add('show')
+		}, 1)
 
-			// Fix space
+		// Fix animation
+		notification.style.zIndex = (28 + notifs.length)
 
-			var value = 0;
-			if(notifs.length > 0) {
-				var lastNotif = notifs[notifs.length - 1];
-				value = (notifs.length * lastNotif.clientHeight);
-			}
-
-			notification.style.webkitTransform = 'translateY(-'+value+'px)';
-			notification.style.MozTransform = 'translateY(-'+value+'px)';
-			notification.style.msTransform = 'translateY(-'+value+'px)';
-			notification.style.OTransform = 'translateY(-'+value+'px)';
-			notification.style.transform = 'translateY(-'+value+'px)';
-
-			notifs.push(notification);
-
-			// push floating actions
-			var fla = document.querySelector('.app-active .floating-action');
-			if(fla) {
-				fla.style.webkitTransform = 'translateY(-48px)';
-				fla.style.MozTransform = 'translateY(-48px)';
-				fla.style.msTransform = 'translateY(-48px)';
-				fla.style.OTransform = 'translateY(-48px)';
-				fla.style.transform = 'translateY(-48px)';
-			}
-
-			notification.on(phonon.event.transitionEnd, onShow, false);
+		// Fix space
+		var value = 0
+		if(notifs.length > 0) {
+			var lastNotif = notifs[notifs.length - 1]
+			value = (notifs.length * lastNotif.clientHeight)
 		}
+
+		notification.style.webkitTransform = 'translateY(-'+value+'px)'
+		notification.style.MozTransform = 'translateY(-'+value+'px)'
+		notification.style.msTransform = 'translateY(-'+value+'px)'
+		notification.style.OTransform = 'translateY(-'+value+'px)'
+		notification.style.transform = 'translateY(-'+value+'px)'
+
+		notifs.push(notification)
+
+		// push floating actions
+		var fla = document.querySelector('.app-active .floating-action')
+		if(fla) {
+			fla.style.webkitTransform = 'translateY(-48px)'
+			fla.style.MozTransform = 'translateY(-48px)'
+			fla.style.msTransform = 'translateY(-48px)'
+			fla.style.OTransform = 'translateY(-48px)'
+			fla.style.transform = 'translateY(-48px)'
+		}
+
+		notification.on(phonon.event.transitionEnd, onShow, false)
 	}
 
 	function hide(notification) {
 		if(notification.classList.contains('show')) {
 
-			notification.classList.remove('show');
+			notification.classList.remove('show')
 
-			notification.on(phonon.event.transitionEnd, onHide, false);
+			notification.on(phonon.event.transitionEnd, onHide, false)
 
 			// put floating actions back in their place
-			var fla = document.querySelector('.app-active .floating-action');
+			var fla = document.querySelector('.app-active .floating-action')
 			if(fla) {
-				fla.style.webkitTransform = 'translateY(0)';
-				fla.style.MozTransform = 'translateY(0)';
-				fla.style.msTransform = 'translateY(0)';
-				fla.style.OTransform = 'translateY(0)';
-				fla.style.transform = 'translateY(0)';
+				fla.style.webkitTransform = 'translateY(0)'
+				fla.style.MozTransform = 'translateY(0)'
+				fla.style.msTransform = 'translateY(0)'
+				fla.style.OTransform = 'translateY(0)'
+				fla.style.transform = 'translateY(0)'
 			}
 		}
 	}
@@ -3179,244 +3241,254 @@ phonon.tagManager = (function () {
 	phonon.notif = function(el, timeout, showButton) {
 
 		if(arguments.length > 1) {
-
-			var text = el;
-			var nBuild = buildNotif(text, timeout, showButton);
-			window.setTimeout(function() {
-				show(document.querySelector('#'+nBuild.id));
-			}, 10);
-			return;
+			// el is text
+			return show(buildNotif(el, timeout, showButton))
 		}
 
-		var notif = (typeof el === 'string' ? document.querySelector(el) : el);
+		var notif = (typeof el === 'string' ? document.querySelector(el) : el)
 		if(notif === null) {
-			throw new Error('The notification with ID ' + el + ' does not exist');
+			throw new Error('The notification with ID ' + el + ' does not exist')
 		}
 
 		return {
 			show: function () {
-				show(notif);
+				show(notif)
 			},
 			hide: function () {
-				hide(notif);
+				hide(notif)
 			}
-		};
-	};
+		}
+	}
 
-    window.phonon = phonon;
+	window.phonon = phonon
 
 	if(typeof exports === 'object') {
-		module.exports = phonon.notif;
+		module.exports = phonon.notif
 	} else if(typeof define === 'function' && define.amd) {
-		define(function() { return phonon.notif });
+		define(function() { return phonon.notif })
 	}
 
 }(typeof window !== 'undefined' ? window : this, window.phonon || {}));
 
 /* ========================================================================
- * Phonon: panels.js v0.1.2
- * http://phonon.quarkdev.com
- * ========================================================================
- * Licensed under MIT (http://phonon.quarkdev.com)
- * ======================================================================== */
+* Phonon: panels.js v0.1.3
+* http://phonon.quarkdev.com
+* ========================================================================
+* Licensed under MIT (http://phonon.quarkdev.com)
+* ======================================================================== */
 ;(function (window, document, phonon, undefined) {
 
-  'use strict';
+	'use strict'
 
-  var panels = [];
-  var busy = false;
+	var _activeObjects = []
 
-  var createBackdrop = function () {
-    var backdrop = document.createElement('div');
-    backdrop.classList.add('backdrop-panel');
-    return backdrop;
-  };
+	var createBackdrop = function (id) {
+		var backdrop = document.createElement('div')
+		backdrop.classList.add('backdrop-panel')
+		backdrop.setAttribute('data-backdrop-for', id)
+		return backdrop
+	}
 
-  var findTrigger = function (target) {
-    var triggers = document.querySelectorAll('[data-panel-id], [data-panel-close]'), i;
-    for (; target && target !== document; target = target.parentNode) {
-      for (i = triggers.length; i--;) {
-        if (triggers[i] === target) {
-          return target;
-        }
-      }
-    }
-  };
+	var findTrigger = function (target) {
+		var triggers = document.querySelectorAll('[data-panel-id], [data-panel-close]'), i
+		for (; target && target !== document; target = target.parentNode) {
+			for (i = triggers.length; i--;) {
+				if (triggers[i] === target) {
+					return target
+				}
+			}
+		}
+	}
 
-  var getPanel = function (event) {
-    var panelToggle = findTrigger(event.target);
-    if (panelToggle) {
-      var panelId = panelToggle.getAttribute('data-panel-id');
-      if(panelId) {
-        return document.querySelector('#'+panelId);
-      } else {
-        return findPanel(event.target);
-      }
-    }
-  };
+	var getPanel = function (event) {
+		var panelToggle = findTrigger(event.target)
+		if (panelToggle) {
+			var panelId = panelToggle.getAttribute('data-panel-id')
+			if(panelId) {
+				return document.querySelector('#'+panelId)
+			} else {
+				return findDOMPanel(event.target)
+			}
+		}
+	}
 
-  var findPanel = function (target) {
-    var panels = document.querySelectorAll('.panel, .panel-full'), i;
+	var findObject = function(panelId) {
+		var length = _activeObjects.length
+		var i = 0
+		for (; i < length; i++) {
+			if(_activeObjects[i].panel.getAttribute('id') === panelId) {
+				var found = _activeObjects[i]
+				found.index = i
+				return found
+			}
+		}
+		return null
+	}
 
-    for (; target && target !== document; target = target.parentNode) {
-      for (i = panels.length; i--;) {
-        if (panels[i] === target && target.classList.contains('active')) {
-          return target;
-        }
-      }
-    }
-  };
+	var findDOMPanel = function (target) {
+		var panels = document.querySelectorAll('.panel, .panel-full'), i
 
-  document.on(phonon.event.start, function (evt) {
-    evt = evt.originalEvent || evt;
+		for (; target && target !== document; target = target.parentNode) {
+			for (i = panels.length; i--;) {
+				if (panels[i] === target && target.classList.contains('active')) {
+					return target
+				}
+			}
+		}
+	}
 
-	// don't close panels if notifications are pressed
-	if(evt.target.classList.contains('notification') || evt.parentNode && evt.target.parentNode.classList.contains('notification')) return
+	/**
+	* Used to find an opened dialog
+	* in front of a panel
+	* @todo clean this
+	*/
+	var onDialog = function (target) {
+		for (; target && target !== document; target = target.parentNode) {
+			if (target.classList.contains('dialog') || target.classList.contains('backdrop-dialog')) {
+				return true;
+			}
+		}
+		return false;
+	};
 
-    if(panels.length > 0) {
-      var previousPanel = panels[panels.length - 1].panel, p = findPanel(evt.target);
+	document.on(phonon.event.start, function (evt) {
+		evt = evt.originalEvent || evt;
 
-      if (!p) {
-        close(previousPanel);
-      }
+		// don't close panels if notifications are pressed
+		if(evt.target.classList.contains('notification') || evt.parentNode && evt.target.parentNode.classList.contains('notification')) return
+		// don't close panels if a dialog is opened
+		if(onDialog(evt.target)) return;
 
-      if (p && p !== previousPanel) {
-        // Case where there are two active panels
-        if (p.id !== previousPanel.id) {
-          close(previousPanel);
-        }
-      }
-    }
-  });
+		if(_activeObjects.length > 0) {
+			var previousPanel = _activeObjects[_activeObjects.length - 1].panel, p = findDOMPanel(evt.target);
 
-  document.on(phonon.event.tap, function (evt) {
+			if (!p) {
+				close(previousPanel);
+			}
 
-	// don't close panels if notifications are pressed
-	if(evt.target.classList.contains('notification') || evt.parentNode && evt.target.parentNode.classList.contains('notification')) return
-	
-    var trigger = findTrigger(evt.target), panel = null;
+			if (p && p !== previousPanel) {
+				// Case where there are two active panels
+				if (p.id !== previousPanel.id) {
+					close(previousPanel);
+				}
+			}
+		}
+	});
 
-    if (trigger) {
-      panel = getPanel(evt);
+	document.on(phonon.event.tap, function (evt) {
 
-      if(panel) {
-        panel.classList.contains('active') ? close(panel) : open(panel);
-      }
-    }
+		// don't close panels if notifications are pressed
+		if(evt.target.classList.contains('notification') || evt.parentNode && evt.target.parentNode.classList.contains('notification')) return
+		// don't close panels if a dialog is opened
+		if(onDialog(evt.target)) return;
 
-    panel = findPanel(evt.target);
+		var trigger = findTrigger(evt.target), panel = null;
 
-    if(!panel && !trigger) {
-      if(panels.length > 0) {
-        var previousPanel = panels[panels.length - 1].panel, p = findPanel(evt.target);
-        close(previousPanel);
-      }
-    }
-  });
+		if (trigger) {
+			panel = getPanel(evt);
 
-  function onHide() {
+			if(panel) {
+				panel.classList.contains('active') ? close(panel) : open(panel);
+			}
+		}
 
-    var page = document.querySelector('.app-active');
-    if(page.querySelector('div.backdrop-panel') !== null) {
+		panel = findDOMPanel(evt.target);
 
-      var backdrop = panels[panels.length - 1].backdrop;
-      backdrop.classList.remove('fadeout');
+		if(!panel && !trigger) {
+			if(_activeObjects.length > 0) {
+				var previousPanel = _activeObjects[_activeObjects.length - 1].panel, p = findDOMPanel(evt.target);
+				close(previousPanel);
+			}
+		}
+	});
 
-      page.removeChild(backdrop);
-    }
+	function onHide() {
 
-    panels[panels.length - 1].panel.style.visibility = 'visible';
-    busy = false;
+		document.body.removeChild(this);
 
-    panels.pop();
+		var object = findObject(this.getAttribute('data-backdrop-for'))
 
-    this.off(phonon.event.transitionEnd, onHide, false);
-  }
+		_activeObjects.splice(object.index, 1)
 
-  /**
-   * Public API
-  */
+		this.off(phonon.event.transitionEnd, onHide, false);
+	}
 
-  function open (panel) {
-    if(busy) {
-      return;
-    }
+	/**
+	* Public API
+	*/
 
-    panel.style.visibility = 'visible';
+	function open (panel) {
+		panel.style.visibility = 'visible';
 
-    if(!panel.classList.contains('active')) {
-      panel.classList.add('active');
+		if(!panel.classList.contains('active')) {
+			panel.classList.add('active');
+			var backdrop = createBackdrop(panel.getAttribute('id'));
 
-      var backdrop = backdrop = createBackdrop();
-      document.querySelector('.app-active').appendChild(backdrop);
+			document.body.appendChild(backdrop);
 
-      panels.push( {panel: panel, backdrop: backdrop} );
-    }
-  }
+			_activeObjects.push({panel: panel, backdrop: backdrop});
+		}
+	}
 
-  function close (panel) {
+	function close (panel) {
 
-    if(busy) {
-      return;
-    }
+		if(panel.classList.contains('active')) {
 
-    if(panel.classList.contains('active') && !busy) {
+			panel.classList.remove('active');
+			panel.classList.add('panel-closing');
 
-      busy = true;
+			var closePanel = function () {
+				panel.classList.remove('panel-closing');
+				panel.off(phonon.event.transitionEnd, closePanel);
+			};
 
-      panel.classList.remove('active');
-      panel.classList.add('panel-closing');
+			panel.on(phonon.event.transitionEnd, closePanel);
 
-      var closePanel = function () {
-        panel.classList.remove('panel-closing');
-        panel.off(phonon.event.transitionEnd, closePanel);
-      };
+			var pObject = findObject(panel.getAttribute('id'))
 
-      panel.on(phonon.event.transitionEnd, closePanel);
+			if(pObject) {
+				pObject.backdrop.classList.add('fadeout');
+				pObject.backdrop.on(phonon.event.transitionEnd, onHide, false);
+			}
 
-      if(panels.length > 0) {
-        var backdrop = panels[panels.length - 1].backdrop;
-        backdrop.classList.add('fadeout');
-        backdrop.on(phonon.event.transitionEnd, onHide, false);
-      }
-    }
-  }
+		}
+	}
 
-  phonon.panel = function (el) {
-    if(typeof el === 'undefined') {
-      return {
-        closeActive: function() {
-          var closable = (panels.length > 0 ? true : false);
-          if(closable) {
-            close(panels[panels.length - 1].panel);
-          }
-          return closable;
-        }
-      }
-    }
+	phonon.panel = function (el) {
+		if(typeof el === 'undefined') {
+			return {
+				closeActive: function() {
+					var closable = (_activeObjects.length > 0 ? true : false);
+					if(closable) {
+						close(_activeObjects[_activeObjects.length - 1].panel);
+					}
+					return closable;
+				}
+			}
+		}
 
-    var panel = (typeof el === 'string' ? document.querySelector(el) : el);
-    if(panel === null) {
-      throw new Error('The panel with ID ' + el + ' does not exist');
-    }
+		var panel = (typeof el === 'string' ? document.querySelector(el) : el);
+		if(panel === null) {
+			throw new Error('The panel with ID ' + el + ' does not exist');
+		}
 
-    return {
-      open: function () {
-        open(panel);
-      },
-      close: function () {
-        close(panel);
-      }
-    };
-  };
+		return {
+			open: function () {
+				open(panel);
+			},
+			close: function () {
+				close(panel);
+			}
+		};
+	};
 
-  window.phonon = phonon;
+	window.phonon = phonon;
 
-  if(typeof exports === 'object') {
-    module.exports = phonon.panel;
-  } else if(typeof define === 'function' && define.amd) {
-    define(function() { return phonon.panel });
-  }
+	if(typeof exports === 'object') {
+		module.exports = phonon.panel;
+	} else if(typeof define === 'function' && define.amd) {
+		define(function() { return phonon.panel });
+	}
 
 }(window, document, window.phonon || {}));
 

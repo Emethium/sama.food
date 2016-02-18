@@ -1,5 +1,5 @@
 /* ========================================================================
- * Phonon: navigator.js v1.1
+ * Phonon: navigator.js v1.2
  * http://phonon.quarkdev.com
  * ========================================================================
  * Licensed under MIT (http://phonon.quarkdev.com)
@@ -40,8 +40,18 @@
 
     /**
      * @constructor
+	 * @param {Object} scope
      */
-    function Activity() {}
+    function Activity(scope) {
+		if(typeof scope === 'object') {
+			var handler;
+			for(handler in scope) {
+				if(this[handler] !== undefined && this[handler] !== 'constructor') {
+					this[handler + 'Callback'] = scope[handler];
+				}
+			}
+		}
+	}
 
     /**
      *
@@ -110,16 +120,14 @@
    */
   var getPageObject = function(pageName) {
 
-    var page = null;
     var i = pages.length - 1;
 
     for (; i >= 0; i--) {
       if(pages[i].name === pageName) {
-        page = pages[i];
-        break;
+        return pages[i];
       }
     }
-    return page;
+    return null;
   };
 
   /**
@@ -169,10 +177,28 @@
 
       previousPageEl.classList.remove('app-active');
     }
+
     callTransitionEnd(currentPage);
     callHiddenCallback(previousPage);
 
     onActiveTransition = false;
+  }
+
+  function dispatchEvent(eventName, pageName, parameters) {
+
+	  var eventInitDict = {
+          detail: { page: pageName },
+          bubbles: true,
+          cancelable: true
+      };
+
+	  if(typeof parameters !== 'undefined') {
+		  eventInitDict.detail.req = parameters
+	  }
+
+	  var event = new window.CustomEvent(eventName, eventInitDict);
+
+	  document.dispatchEvent(event);
   }
 
   function callCreate(pageName) {
@@ -182,20 +208,14 @@
       phonon.tagManager.trigger(pageName, 'create');
     }
 
-    var page = getPageObject(pageName);
-
-    var pageEvent = new window.CustomEvent('pagecreated', {
-        detail: { page: pageName },
-        bubbles: true,
-        cancelable: true
-    });
-
     /*
      * dispatch the event before calling the activity's callback
      * so that UI components are ready to use
      * issue #52 is related to this
     */
-    document.dispatchEvent(pageEvent);
+	dispatchEvent('pagecreated', pageName)
+
+	var page = getPageObject(pageName);
 
     // Call the onCreate callback
     if(page.activity instanceof Activity && typeof page.activity.onCreateCallback === 'function') {
@@ -206,7 +226,7 @@
 
   function callReady(pageName) {
 
-    var page = getPageObject(pageName);
+	var page = getPageObject(pageName);
 
     window.setTimeout(function() {
 
@@ -216,19 +236,13 @@
       }
 
       // Dispatch the global event pageopened
-      var pageEvent = new window.CustomEvent('pageopened', {
-          detail: { page: pageName },
-          bubbles: true,
-          cancelable: true
-      });
-
-      document.dispatchEvent(pageEvent);
+	  dispatchEvent('pageopened', pageName)
 
       // Call the onReady callback
       if(page.activity instanceof Activity && typeof page.activity.onReadyCallback === 'function') {
         page.activity.onReadyCallback();
       }
-      
+
     }, page.readyDelay);
   }
 
@@ -236,6 +250,8 @@
     if(riotEnabled) {
       phonon.tagManager.trigger(pageName, 'transitionend');
     }
+
+	dispatchEvent('pagetransitionend', pageName)
 
     var page = getPageObject(pageName);
 
@@ -251,6 +267,8 @@
       phonon.tagManager.trigger(pageName, 'hidden');
     }
 
+	dispatchEvent('pagehidden', pageName)
+
     var page = getPageObject(pageName);
 
     // Call the onHidden callback
@@ -265,6 +283,8 @@
       phonon.tagManager.trigger(pageName, 'tabchanged', tabNumber);
     }
 
+	dispatchEvent('pagetabchanged', pageName)
+
     var page = getPageObject(pageName);
 
     // Call the onTabChanged callback
@@ -276,6 +296,8 @@
   function callClose(pageName, nextPageName, hash) {
 
     function close() {
+
+	  dispatchEvent('pageclosed', pageName)
 
       var currentHash = window.location.hash.split('#')[1];
 
@@ -320,6 +342,8 @@
     if(riotEnabled) {
       phonon.tagManager.trigger(pageName, 'hashchanged', params);
     }
+
+	dispatchEvent('pagehash', pageName, params)
 
     var page = getPageObject(pageName);
 
@@ -409,18 +433,40 @@
     req.send('');
   }
 
-  function addPage(pageName) {
+  function createPage(pageName, properties) {
+	properties = typeof properties === 'object' ? properties : {};
 
-    var page = {
-      name: pageName,
-      mounted: false,
-      async: false,
-      activity: null,
-      content: null,
-      readyDelay: 1
-    };
+	var newPage = {
+		name: pageName,
+		mounted: false,
+		async: false,
+		activity: null,
+		content: null,
+		readyDelay: 1
+	};
 
-    pages.push(page);
+	var prop;
+	for(prop in properties) {
+		newPage[prop] = properties[prop];
+	}
+
+	return newPage;
+  }
+
+  function createOrUpdatePage(pageName, properties) {
+	  properties = typeof properties === 'object' ? properties : {};
+
+	  var page = getPageObject(pageName);
+	  if(page === null) {
+		  return pages.push(createPage(pageName, properties));
+	  }
+
+	  var prop;
+	  for(prop in properties) {
+		  page[prop] = properties[prop];
+	  }
+
+	  return true;
   }
 
   /**
@@ -662,7 +708,7 @@
         page.classList.add('app-page');
       }
 
-      addPage( page.tagName.toLowerCase() );
+      createOrUpdatePage( page.tagName.toLowerCase() );
     }
   }
 
@@ -849,12 +895,8 @@
   if(opts.useHash) window.on('hashchange', onRoute);
 
   document.on('backbutton', function() {
-    var pObj = getLastPage();
-    if(currentPage === opts.defaultPage) {
-      return;
-    }
-
-    callClose(currentPage, pObj.page, opts.hashPrefix + pObj.page + '/' + pObj.params);
+    var last = getLastPage();
+    callClose(currentPage, last.page, opts.hashPrefix + last.page + '/' + last.params);
   });
 
 
@@ -894,18 +936,26 @@
           throw new Error('readyDelay option must be a number');
         }
 
-        var p = getPageObject(options.page);
+		// vuejs, riotjs support
+        var page = getPageObject(options.page);
+		var exists = page === null ? false : true;
+		if(!exists) {
+          page = createPage(options.page);
+		}
 
-        if(p) {
-          p.activity = (typeof callback === 'function' ? new Activity() : null);
-          p.callback = callback;
-          p.async = (typeof options.preventClose === 'boolean' ? options.preventClose : false);
-          p.content = (typeof options.content === 'string' ? options.content : null);
-          p.readyDelay = (typeof options.readyDelay === 'number' ? options.readyDelay : 1);
-        } else {
-          throw new Error('A namespace for  ' + options.page + ' is detected, but the DOM node <' + options.page + '> is not found.');
-        }
-      },
+		if(typeof callback === 'function' || typeof callback === 'object') {
+		  page.activity = new Activity(callback);
+	  	} else {
+		  page.activity = null;
+	  	}
+
+		page.callback = callback;
+		page.async = (typeof options.preventClose === 'boolean' ? options.preventClose : false);
+		page.content = (typeof options.content === 'string' ? options.content : null);
+		page.readyDelay = (typeof options.readyDelay === 'number' ? options.readyDelay : 1);
+
+		createOrUpdatePage(options.page.toLowerCase(), page);
+	  },
       callCallback: callCallback
     };
   };

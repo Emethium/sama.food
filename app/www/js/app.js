@@ -13,6 +13,8 @@ phonon.options({
 
 var app = phonon.navigator();
 
-
 // Let's go!
 app.start();
+
+//phonon.panel('#bras').open();
+//phonon.panel('#bras').close();

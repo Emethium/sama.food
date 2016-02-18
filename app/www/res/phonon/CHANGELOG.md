@@ -1,3 +1,34 @@
+### 1.2.0 (2016-02-16)
+
+#### Bug Fixes
+
+* notification display with preloader [#73](https://github.com/quark-dev/Phonon-Framework/issues/73)
+* each panel has its own state (vs global state)
+[#64](https://github.com/quark-dev/Phonon-Framework/issues/64)
+* fix title length in header bars [#88](https://github.com/quark-dev/Phonon-Framework/issues/88)
+* fix backbutton on Cordova (default: app is closed) [#88](https://github.com/quark-dev/Phonon-Framework/issues/88)
+
+### 1.1.9 (2016-02-01)
+
+#### Features
+
+* **vueJS** example
+
+#### Bug Fixes
+
+* asynchronous page events update
+
+### 1.1.8 (2016-01-31)
+
+#### Features
+
+* notifications and intl
+* replaced gulp-cssmin by [gulp-cssnano](https://github.com/ben-eb/gulp-cssnano)
+
+#### Bug Fixes
+
+* full panel and dialogs [#83](https://github.com/quark-dev/Phonon-Framework/issues/83)
+
 ### 1.1.7 (2016-01-04)
 
 #### Bug Fixes
