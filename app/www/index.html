@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 
 <html>
+
     <head>
         <meta charset="utf-8" />
         <meta name="format-detection" content="telephone=no" />
@@ -11,7 +12,9 @@
         <link rel="stylesheet" type="text/css" href="res/phonon/dist/css/phonon.css" />
         <title>Samafood</title>
     </head>
+    </home>
     <body>
+      <home data-page="true">
       <header class="header-bar">
 	       <button class="btn pull-left icon icon-menu" data-side-panel-id="side-home"></button>
          <div class="center">
@@ -19,10 +22,28 @@
          </div>
       </header>
 
+      <ul class="list" id="myList">
+        <li><a href="#item" class="padded-list"></a></li>
+        <li><a href="#item" class="padded-list" data-panel-id="bras">Brasileirinhos</a></li>
+        <li><a href="#item" class="padded-list" data-panel-id="chopin">Chopim Express</a></li>
+        <li><a href="#item" class="padded-list" data-panel-id="fast">Fast Pizza</a></li>
+        <li><a href="#item" class="padded-list" data-panel-id="lenha">Forno a Lenha</a></li>
+        <li><a href="#item" class="padded-list" data-panel-id="japa">Japa Sama</a></li>
+        <li><a href="#item" class="padded-list" data-panel-id="imperio">Império dos Lanches</a></li>
+        <li><a href="#item" class="padded-list" data-panel-id="marks">Mark's Lanches</a></li>
+        <li><a href="#item" class="padded-list" data-panel-id="bella">Pizza Bella</a></li>
+        <li><a href="#item" class="padded-list" data-panel-id="delicia">Q Delicia</a></li>
+        <li><a href="#item" class="padded-list" data-panel-id="sushinami">Sushinami</a></li>
+        <li><a href="#item" class="padded-list" data-panel-id="gemeos">Sushi Gêmeos</a></li>
+        <li><a href="#item" class="padded-list" data-panel-id="vamp">Vamp Lanches</a></li>
+     </ul>
+      </home>
+
       <!-- Panel tags go here -->
 
       <!-- Side Panel tags go here -->
-      <div id="side-home" class="side-panel side-panel-left" data-disable="right" >
+
+      <div id="side-home" class="side-panel side-panel-left" data-expose-aside="none" data-disable="right" data-page="home" >
           <header class="header-bar">
             <button class="btn pull-right icon icon-close" data-side-panel-close="true"></button>
             <div class="pull-left">
@@ -32,31 +53,17 @@
           <div class="content">
               <ul class="list">
                 <li><a class="padded-list">Busca</a></li>
-                <li><a class="padded-list">Deliveries</a></li>
                 <li><a class="padded-list">Favoritos</a></li>
                 <li><a class="padded-list">Categorias</a></li>
                 <li><a class="padded-list">Sobre</a></li>
               </ul>
           </div>
       </div>
-      <!-- Notification tags go here -->
 
-     <!-- Dialog tags go here -->
-     <ul class="list" id="myList">
-       <li><a href="#item" class="padded-list"></a></li>
-       <li><a href="#item" class="padded-list" data-panel-id="bras">Brasileirinho</a></li>
-       <li><a href="#item" class="padded-list" data-panel-id="chopin">Chopim Express</a></li>
-       <li><a href="#item" class="padded-list" data-panel-id="fast">Fast Pizza</a></li>
-       <li><a href="#item" class="padded-list" data-panel-id="lenha">Forno a Lenha</a></li>
-       <li><a href="#item" class="padded-list" data-panel-id="japa">Japa Sama</a></li>
-       <li><a href="#item" class="padded-list" data-panel-id="imperio">Império dos Lanches</a></li>
-       <li><a href="#item" class="padded-list" data-panel-id="marks">Mark's Lanches</a></li>
-       <li><a href="#item" class="padded-list" data-panel-id="bella">Pizza Bella</a></li>
-       <li><a href="#item" class="padded-list" data-panel-id="delicia">Q Delicia</a></li>
-       <li><a href="#item" class="padded-list" data-panel-id="sushinami">Sushinami</a></li>
-       <li><a href="#item" class="padded-list" data-panel-id="gemeos">Sushi Gêmeos</a></li>
-       <li><a href="#item" class="padded-list" data-panel-id="vamp">Vamp Lanches</a></li>
-    </ul>
+    <!-- Notification tags go here -->
+
+    <!-- Dialog tags go here -->
+
 
     <!-- List tags go here -->
     <div id="bras" class="panel-full">
