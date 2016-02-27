@@ -4,7 +4,7 @@ phonon.options({
         hashPrefix: '!',
         animatePages: true,
         enableBrowserBackButton: true,
-        templateRootDirectory: '',
+        templateRootDirectory: 'screens/',
         useHash: true
     },
     i18n: null // I won't use internationalization
@@ -12,7 +12,7 @@ phonon.options({
 
 var app = phonon.navigator();
 
-app.on({page: 'home', preventClose: false, content: null});
+app.on({page: 'home', preventClose: false, content: 'home.html'});
 // Let's go!
 app.start();
 

@@ -4,7 +4,7 @@ phonon.options({
         hashPrefix: '!',
         animatePages: true,
         enableBrowserBackButton: true,
-        templateRootDirectory: '',
+        templateRootDirectory: './screens',
         useHash: true
     },
     i18n: null // I won't use internationalization
