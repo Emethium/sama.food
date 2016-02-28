@@ -9,11 +9,22 @@
         <meta http-equiv="Content-Security-Policy" content="default-src *; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'">
         <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, target-densitydpi=device-dpi" />
         <link rel="stylesheet" type="text/css" href="res/phonon/dist/css/phonon.css" />
-        <title>Samafood</title>
+        <title>Sama.food</title>
     </head>
-
     <body>
-  
+
+      <!-- Side Panel -->
+      <div id="side-home" class="side-panel side-panel-left" data-expose-aside="none" data-disable="right" data-page="home" >
+          <div class="content">
+              <ul class="list">
+                <li><a class="padded-list" href="#!search">Busca</a></li>
+                <li><a class="padded-list" href="#!favorites">Favoritos</a></li>
+                <li><a class="padded-list" href="#!categories">Categorias</a></li>
+                <li><a class="padded-list" href="#!about">Sobre</a></li>
+              </ul>
+          </div>
+      </div>
+
     <!-- Pages tags go here -->
     <home data-page="true"></home>
     <search data-page="true"></search>

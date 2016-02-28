@@ -12,9 +12,7 @@ phonon.options({
 
 var app = phonon.navigator();
 
-app.on({page: 'home', preventClose: false, content: 'home.html'});
+app.on({page: 'home', content: 'home.html'});
+app.on({page: 'search', content: 'search.html'});
 // Let's go!
 app.start();
-
-//phonon.panel('#bras').open();
-//phonon.panel('#bras').close();
