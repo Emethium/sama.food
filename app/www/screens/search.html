@@ -1,28 +1,34 @@
 <search class="app-page">
   <header class="header-bar">
 	   <a class="btn pull-left icon icon-close" data-navigation="$previous-page"></a>
-	    <input type="text" class=" pull-left search-input" placeholder="Busque aqui!" data-popover-id="pop">
-      <a class="btn pull-right icon icon-check"></a>
+     <input ng-model="query" id="query" type="text" class="pull-left search-input" placeholder="Busque aqui!">
+     <a class="btn pull-right icon icon-check"></a>
+
+      <script type="text/javascript">
+        function search($scope){
+          $scope.deliveries = [
+            {id: "bras", name: "Brasileirinho"},
+            {id: "chopin", name: "Chopim Express"},
+            {id: "fast", name: "Fast Pizza"},
+            {id: "lenha", name: "Forno a Lenha"},
+            {id: "japa", name: "Japa Sama"},
+            {id: "imperio", name: "Império dos Lanches"},
+            {id: "marks", name: "Mark's Lanches"},
+            {id: "bella", name: "Pizza Bella"},
+            {id: "delicia", name: "Q Delicia"},
+            {id: "sushinami", name: "Sushinami"},
+            {id: "gemeos", name: "Sushi Gêmeos"},
+            {id: "vamp", name: "Vamp Lanches"},
+          ];
+        });
+      </script>
   </header>
 
   <div class="content">
-
-      <div class="popover" id="pop">
-        <ul class="list">
-          <li><a href="#item" class="padded-list" data-panel-id="bras">Brasileirinho</a></li>
-          <li><a href="#item" class="padded-list" data-panel-id="chopin">Chopim Express</a></li>
-          <li><a href="#item" class="padded-list" data-panel-id="fast">Fast Pizza</a></li>
-          <li><a href="#item" class="padded-list" data-panel-id="lenha">Forno a Lenha</a></li>
-          <li><a href="#item" class="padded-list" data-panel-id="japa">Japa Sama</a></li>
-          <li><a href="#item" class="padded-list" data-panel-id="imperio">Império dos Lanches</a></li>
-          <li><a href="#item" class="padded-list" data-panel-id="marks">Mark's Lanches</a></li>
-          <li><a href="#item" class="padded-list" data-panel-id="bella">Pizza Bella</a></li>
-          <li><a href="#item" class="padded-list" data-panel-id="delicia">Q Delicia</a></li>
-          <li><a href="#item" class="padded-list" data-panel-id="sushinami">Sushinami</a></li>
-          <li><a href="#item" class="padded-list" data-panel-id="gemeos">Sushi Gêmeos</a></li>
-          <li><a href="#item" class="padded-list" data-panel-id="vamp">Vamp Lanches</a></li>
-       </ul>
-     </div>
+    <ul class="list" ng-controller="search" ng-repeat="delivery in deliveries | filter:query | orderBy:name">
+      <li><a href="#item" class="padded-list" data-panel-id={{delivery.id}}>{{delivery.name}}</a></li>
+   </ul>
+ </div>
 
      <div id="bras" class="panel-full">
          <header class="header-bar">
@@ -215,5 +221,4 @@
              <p class="padded-full"> Qua - Seg : das 15:00h às 01:00h</p>
          </div>
      </div>
-  </div>
 </search>
